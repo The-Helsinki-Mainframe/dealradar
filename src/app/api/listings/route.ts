@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   const sourcesParam = sp.getAll('source')
   const sources: string[] = sourcesParam.length > 0
     ? sourcesParam.flatMap(s => s.split(','))
-    : ['sscom', 'city24']
+    : ['sscom', 'city24', 'izsoles']
 
   const sortMap: Record<string, string> = {
     'price-asc':  'price_eur ASC NULLS LAST',

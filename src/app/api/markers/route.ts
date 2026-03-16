@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   const sourcesParam = sp.getAll('source')
   const sources: string[] = sourcesParam.length > 0
     ? sourcesParam.flatMap(s => s.split(','))
-    : ['sscom', 'city24']
+    : ['sscom', 'city24', 'izsoles']
 
   const district = sp.get('district') || ''
   const street   = sp.get('street')   || ''

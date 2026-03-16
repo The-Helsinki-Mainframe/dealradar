@@ -14,14 +14,14 @@ export interface FilterState {
   rooms: string[]
   floors: string[]
   hasLift: boolean
-  sources: string[]  // 'sscom' | 'city24'
+  sources: string[]  // 'sscom' | 'city24' | 'izsoles'
 }
 
 export const EMPTY_FILTERS: FilterState = {
   district: '', street: '', priceMin: '', priceMax: '',
   ppm2Min: '', ppm2Max: '', sizeMin: '', sizeMax: '',
   rooms: [], floors: [], hasLift: false,
-  sources: ['sscom', 'city24'],
+  sources: ['sscom', 'city24', 'izsoles'],
 }
 
 interface FilterSidebarProps {
@@ -252,6 +252,7 @@ export function FilterSidebar({ isDark, onDrawArea, onClearDraw, hasDrawnArea, o
           {[
             { key: 'sscom',   label: 'SS.com',   emoji: '🏠' },
             { key: 'city24',  label: 'City24',   emoji: '🔵' },
+            { key: 'izsoles', label: 'Auctions', emoji: '⚖️' },
           ].map(({ key, label, emoji }) => {
             const active = (f.sources ?? ['sscom','city24','izsoles']).includes(key)
             return (
