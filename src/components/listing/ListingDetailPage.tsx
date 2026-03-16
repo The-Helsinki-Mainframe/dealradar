@@ -16,12 +16,13 @@ interface ListingDetailPageProps {
 export function ListingDetailPage({ id }: ListingDetailPageProps) {
   const searchParams = useSearchParams()
   const backPage = searchParams.get('back_page') || '1'
+  const source   = searchParams.get('source') || 'sscom'
   const [listing, setListing] = useState<ListingDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [currentPhoto, setCurrentPhoto] = useState(0)
 
   useEffect(() => {
-    fetch(`/api/listing/${id}`)
+    fetch(`/api/listing/${id}?source=${source}`)
       .then(r => r.json())
       .then(d => { setListing(d); setLoading(false) })
       .catch(() => setLoading(false))
@@ -146,8 +147,18 @@ export function ListingDetailPage({ id }: ListingDetailPageProps) {
                   </div>
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <div style={{ fontSize: 26, fontWeight: 900, color: '#0f172a' }}>{l.price_eur != null ? formatPrice(l.price_eur) : '—'}</div>
-                  <div style={{ fontSize: 13, color: '#94a3b8' }}>{l.price_m2 != null ? `€${Math.round(l.price_m2)}/m²` : ''}</div>
+                  {(l as any).source === 'izsoles' ? (
+                    <>
+                      <div style={{ fontSize: 12, color: '#f59e0b', fontWeight: 700, marginBottom: 2 }}>⚖️ AUCTION</div>
+                      <div style={{ fontSize: 26, fontWeight: 900, color: '#0f172a' }}>Start {(l as any).start_price_eur != null ? formatPrice((l as any).start_price_eur) : '—'}</div>
+                      {(l as any).valuation_eur && <div style={{ fontSize: 13, color: '#94a3b8' }}>Valuation: {formatPrice((l as any).valuation_eur)}</div>}
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ fontSize: 26, fontWeight: 900, color: '#0f172a' }}>{l.price_eur != null ? formatPrice(l.price_eur) : '—'}</div>
+                      <div style={{ fontSize: 13, color: '#94a3b8' }}>{l.price_m2 != null ? `€${Math.round(l.price_m2)}/m²` : ''}</div>
+                    </>
+                  )}
                 </div>
               </div>
               <div id="listing-specs" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 14 }}>
@@ -172,9 +183,11 @@ export function ListingDetailPage({ id }: ListingDetailPageProps) {
               <div style={{ fontSize: 13, color: '#475569', lineHeight: 1.7 }}>
                 {desc.split('\n').map((line, i) => <p key={i} style={{ marginBottom: 8 }}>{line}</p>)}
               </div>
-              <a href={l.url} target="_blank" rel="noreferrer" style={{ display: 'inline-block', marginTop: 8, fontSize: 12, color: '#6366f1', fontWeight: 600, textDecoration: 'none' }}>
-                View full listing on ss.com ↗
-              </a>
+              {l.url && (
+                <a href={l.url} target="_blank" rel="noreferrer" style={{ display: 'inline-block', marginTop: 8, fontSize: 12, color: '#6366f1', fontWeight: 600, textDecoration: 'none' }}>
+                  View on {(l as any).source === 'city24' ? 'city24.lv' : (l as any).source === 'izsoles' ? 'izsoles.ta.gov.lv' : 'ss.com'} ↗
+                </a>
+              )}
             </div>
 
             {/* Map */}

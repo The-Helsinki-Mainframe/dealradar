@@ -112,7 +112,7 @@ export function ListingCard({ listing: l, page, isDark, isSelected, onClick }: L
         <div className="flex items-center gap-2">
           <span className="text-[10px]" style={{ color: isDark ? '#334155' : '#cbd5e1' }}>{da}</span>
           <Link
-            href={`/listing/${l.listing_id}?back_page=${page}`}
+            href={`/listing/${l.listing_id}?back_page=${page}&source=${l.source || 'sscom'}`}
             id={`card-view-${l.listing_id}`}
             onClick={(e) => e.stopPropagation()}
             className="text-[10px] font-bold px-2 py-1 rounded-md transition-all"
