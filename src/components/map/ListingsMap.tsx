@@ -89,7 +89,7 @@ export function ListingsMap({ markers, allMarkersForPolygon, isDark, selectedId,
             <div style="font-size:11px;color:#64748b;margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${m.addr}</div>
             <div style="display:flex;align-items:center;justify-content:space-between;">
               <span style="font-size:11px;font-weight:700;padding:2px 7px;border-radius:20px;color:white;background:${scoreColor(m.score)}">${m.score.toFixed(1)}</span>
-              <a href="/listing/${m.id}" style="font-size:11px;font-weight:700;color:#6366f1;text-decoration:none;background:#eef2ff;border:1.5px solid #e0e7ff;padding:3px 9px;border-radius:7px;">View →</a>
+              <a href="/listing/${m.id}?source=${m.source || 'sscom'}" style="font-size:11px;font-weight:700;color:#6366f1;text-decoration:none;background:#eef2ff;border:1.5px solid #e0e7ff;padding:3px 9px;border-radius:7px;">View →</a>
             </div>
           </div>
         </div>`
