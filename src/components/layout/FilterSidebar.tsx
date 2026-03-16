@@ -29,7 +29,8 @@ interface FilterSidebarProps {
   onDrawArea: () => void
   onClearDraw: () => void
   hasDrawnArea: boolean
-  onApply: (f: FilterState) => void
+  filters: FilterState
+  onChange: (f: FilterState) => void
   onClear: () => void
 }
 
@@ -39,10 +40,8 @@ const REGIONS = [
   'Sarkandaugava', 'Vecmīlgrāvis', 'Bolderāja',
 ]
 
-export function FilterSidebar({ isDark, onDrawArea, onClearDraw, hasDrawnArea, onApply, onClear }: FilterSidebarProps) {
-  const [f, setF] = useState<FilterState>(EMPTY_FILTERS)
+export function FilterSidebar({ isDark, onDrawArea, onClearDraw, hasDrawnArea, filters, onChange, onClear }: FilterSidebarProps) {
   const [streets, setStreets] = useState<string[]>([])
-  // Prevent scroll-jump when toggling chips: track whether an interaction happened
   const sidebarRef = useRef<HTMLDivElement>(null)
 
   const bg = isDark ? '#1e293b' : 'white'
@@ -65,34 +64,30 @@ export function FilterSidebar({ isDark, onDrawArea, onClearDraw, hasDrawnArea, o
 
   // Fetch streets when district changes
   useEffect(() => {
-    setF(prev => ({ ...prev, street: '' }))
-    if (!f.district) { setStreets([]); return }
-    fetch(`/api/streets?district=${encodeURIComponent(f.district)}`)
+    if (!filters.district) { setStreets([]); return }
+    fetch(`/api/streets?district=${encodeURIComponent(filters.district)}`)
       .then(r => r.json())
       .then(setStreets)
       .catch(() => setStreets([]))
-  }, [f.district])
+  }, [filters.district])
 
   function set<K extends keyof FilterState>(key: K, val: FilterState[K]) {
-    setF(prev => ({ ...prev, [key]: val }))
+    onChange({ ...filters, [key]: val })
+  }
+
+  function handleDistrictChange(newDistrict: string) {
+    // Clear street when district changes
+    onChange({ ...filters, district: newDistrict, street: '' })
   }
 
   function toggleChip(key: 'rooms' | 'floors', val: string) {
-    // Save scroll position, toggle, restore — prevents the jump
+    // Save + restore scroll to prevent jump on chip toggle
     const el = sidebarRef.current
     const scrollTop = el?.scrollTop ?? 0
-    setF(prev => {
-      const arr = prev[key]
-      return { ...prev, [key]: arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val] }
-    })
-    // Restore scroll after state flush
+    const arr = filters[key] as string[]
+    const newArr = arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val]
+    onChange({ ...filters, [key]: newArr })
     requestAnimationFrame(() => { if (el) el.scrollTop = scrollTop })
-  }
-
-  function handleClearAll() {
-    setF(EMPTY_FILTERS)
-    setStreets([])
-    onClear()
   }
 
   function ChipBtn({ label, active, onToggle }: { label: string; active: boolean; onToggle: () => void }) {
@@ -167,16 +162,16 @@ export function FilterSidebar({ isDark, onDrawArea, onClearDraw, hasDrawnArea, o
       {/* Region + Street */}
       <Section id="filter-region">
         <SectionLabel>Region</SectionLabel>
-        <select value={f.district} onChange={e => set('district', e.target.value)} style={{ ...inputStyle, marginBottom: 8 }}>
+        <select value={filters.district} onChange={e => handleDistrictChange(e.target.value)} style={{ ...inputStyle, marginBottom: 8 }}>
           <option value="">All regions</option>
           {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
         </select>
         <SectionLabel>Street</SectionLabel>
-        <select value={f.street} onChange={e => set('street', e.target.value)} style={inputStyle} disabled={streets.length === 0}>
+        <select value={filters.street} onChange={e => set('street', e.target.value)} style={inputStyle} disabled={streets.length === 0}>
           <option value="">All streets</option>
           {streets.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
-        {f.district && streets.length === 0 && (
+        {filters.district && streets.length === 0 && (
           <p style={{ fontSize: 10, color: labelColor, marginTop: 4 }}>Loading streets…</p>
         )}
       </Section>
@@ -185,9 +180,9 @@ export function FilterSidebar({ isDark, onDrawArea, onClearDraw, hasDrawnArea, o
       <Section id="filter-price">
         <SectionLabel>Price (€)</SectionLabel>
         <div className="flex items-center gap-2">
-          <input type="number" placeholder="Min" value={f.priceMin} onChange={e => set('priceMin', e.target.value)} style={inputStyle} />
+          <input type="number" placeholder="Min" value={filters.priceMin} onChange={e => set('priceMin', e.target.value)} style={inputStyle} />
           <span style={{ color: '#cbd5e1', fontSize: 11, flexShrink: 0 }}>—</span>
-          <input type="number" placeholder="Max" value={f.priceMax} onChange={e => set('priceMax', e.target.value)} style={inputStyle} />
+          <input type="number" placeholder="Max" value={filters.priceMax} onChange={e => set('priceMax', e.target.value)} style={inputStyle} />
         </div>
       </Section>
 
@@ -195,9 +190,9 @@ export function FilterSidebar({ isDark, onDrawArea, onClearDraw, hasDrawnArea, o
       <Section id="filter-price-m2">
         <SectionLabel>Price per m² (€/m²)</SectionLabel>
         <div className="flex items-center gap-2">
-          <input type="number" placeholder="Min" value={f.ppm2Min} onChange={e => set('ppm2Min', e.target.value)} style={inputStyle} />
+          <input type="number" placeholder="Min" value={filters.ppm2Min} onChange={e => set('ppm2Min', e.target.value)} style={inputStyle} />
           <span style={{ color: '#cbd5e1', fontSize: 11, flexShrink: 0 }}>—</span>
-          <input type="number" placeholder="Max" value={f.ppm2Max} onChange={e => set('ppm2Max', e.target.value)} style={inputStyle} />
+          <input type="number" placeholder="Max" value={filters.ppm2Max} onChange={e => set('ppm2Max', e.target.value)} style={inputStyle} />
         </div>
       </Section>
 
@@ -205,9 +200,9 @@ export function FilterSidebar({ isDark, onDrawArea, onClearDraw, hasDrawnArea, o
       <Section id="filter-size">
         <SectionLabel>Size (m²)</SectionLabel>
         <div className="flex items-center gap-2">
-          <input type="number" placeholder="Min" value={f.sizeMin} onChange={e => set('sizeMin', e.target.value)} style={inputStyle} />
+          <input type="number" placeholder="Min" value={filters.sizeMin} onChange={e => set('sizeMin', e.target.value)} style={inputStyle} />
           <span style={{ color: '#cbd5e1', fontSize: 11, flexShrink: 0 }}>—</span>
-          <input type="number" placeholder="Max" value={f.sizeMax} onChange={e => set('sizeMax', e.target.value)} style={inputStyle} />
+          <input type="number" placeholder="Max" value={filters.sizeMax} onChange={e => set('sizeMax', e.target.value)} style={inputStyle} />
         </div>
       </Section>
 
@@ -216,7 +211,7 @@ export function FilterSidebar({ isDark, onDrawArea, onClearDraw, hasDrawnArea, o
         <SectionLabel>Rooms</SectionLabel>
         <div className="flex flex-wrap gap-1.5">
           {['Studio', '1', '2', '3', '4', '5+'].map(r => (
-            <ChipBtn key={r} label={r} active={f.rooms.includes(r)} onToggle={() => toggleChip('rooms', r)} />
+            <ChipBtn key={r} label={r} active={filters.rooms.includes(r)} onToggle={() => toggleChip('rooms', r)} />
           ))}
         </div>
       </Section>
@@ -226,13 +221,13 @@ export function FilterSidebar({ isDark, onDrawArea, onClearDraw, hasDrawnArea, o
         <SectionLabel>Floor level</SectionLabel>
         <div className="flex flex-wrap gap-1.5 mb-1.5">
           {['1', '2', '3', '4', '5', '6+', 'Top'].map(fl => (
-            <ChipBtn key={fl} label={fl} active={f.floors.includes(fl)} onToggle={() => toggleChip('floors', fl)} />
+            <ChipBtn key={fl} label={fl} active={filters.floors.includes(fl)} onToggle={() => toggleChip('floors', fl)} />
           ))}
         </div>
         <p style={{ fontSize: 10, color: labelColor }}>Deselect floor 1 &amp; Top to exclude ground &amp; attic flats</p>
       </Section>
 
-      {/* Building type — Phase 1 (not yet in DB filter, shown for UX) */}
+      {/* Building type — Phase 1 */}
       <Section id="filter-building-type">
         <SectionLabel>Building type</SectionLabel>
         <div className="flex flex-col gap-1.5">
@@ -246,7 +241,7 @@ export function FilterSidebar({ isDark, onDrawArea, onClearDraw, hasDrawnArea, o
       </Section>
 
       {/* Sources */}
-      <Section id="filter-sources">
+      <Section id="filter-sources-check">
         <SectionLabel>Sources</SectionLabel>
         <div className="flex flex-col gap-1.5">
           {[
@@ -254,7 +249,7 @@ export function FilterSidebar({ isDark, onDrawArea, onClearDraw, hasDrawnArea, o
             { key: 'city24',  label: 'City24',   emoji: '🔵' },
             { key: 'izsoles', label: 'Auctions', emoji: '⚖️' },
           ].map(({ key, label, emoji }) => {
-            const active = (f.sources ?? ['sscom','city24','izsoles']).includes(key)
+            const active = (filters.sources ?? ['sscom','city24','izsoles']).includes(key)
             return (
               <label key={key} className="flex items-center gap-2 cursor-pointer" style={{ fontSize: 12, color: isDark ? '#94a3b8' : '#475569' }}>
                 <input
@@ -262,7 +257,7 @@ export function FilterSidebar({ isDark, onDrawArea, onClearDraw, hasDrawnArea, o
                   style={{ accentColor: '#6366f1' }}
                   checked={active}
                   onChange={e => {
-                    const cur = f.sources ?? ['sscom','city24','izsoles']
+                    const cur = filters.sources ?? ['sscom','city24','izsoles']
                     set('sources', e.target.checked ? [...cur, key] : cur.filter(s => s !== key))
                   }}
                 />
@@ -278,7 +273,7 @@ export function FilterSidebar({ isDark, onDrawArea, onClearDraw, hasDrawnArea, o
         <SectionLabel>Other</SectionLabel>
         <div className="flex flex-col gap-1.5">
           <label className="flex items-center gap-2 cursor-pointer" style={{ fontSize: 12, color: isDark ? '#94a3b8' : '#475569' }}>
-            <input type="checkbox" style={{ accentColor: '#6366f1' }} checked={f.hasLift}
+            <input type="checkbox" style={{ accentColor: '#6366f1' }} checked={filters.hasLift}
               onChange={e => set('hasLift', e.target.checked)} />
             Has lift
           </label>
@@ -312,19 +307,13 @@ export function FilterSidebar({ isDark, onDrawArea, onClearDraw, hasDrawnArea, o
         </p>
       </Section>
 
-      {/* Apply */}
+      {/* Clear all (no Apply button — filters are live) */}
       <div style={{ padding: '13px 15px' }}>
-        <button type="button" onClick={() => onApply(f)}
-          className="w-full text-[13px] font-bold text-white rounded-xl py-2.5 transition-all"
-          style={{ background: '#6366f1', border: 'none', cursor: 'pointer', boxShadow: '0 4px 12px rgba(99,102,241,0.25)' }}
+        <button type="button" onClick={onClear}
+          className="w-full text-[11px] py-1.5 border-none cursor-pointer rounded-lg"
+          style={{ background: isDark ? 'rgba(255,255,255,0.04)' : '#f1f5f9', color: labelColor }}
         >
-          Apply filters
-        </button>
-        <button type="button" onClick={handleClearAll}
-          className="w-full text-[11px] py-1.5 mt-1 border-none cursor-pointer"
-          style={{ background: 'none', color: labelColor }}
-        >
-          Clear all
+          Clear all filters
         </button>
       </div>
     </aside>

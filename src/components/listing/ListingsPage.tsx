@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { Nav } from '@/components/layout/Nav'
@@ -13,6 +13,8 @@ const ListingsMap = dynamic(() => import('@/components/map/ListingsMap').then(m 
   ssr: false,
   loading: () => <div style={{ width: '100%', height: '100%', background: '#1e293b' }} />,
 })
+
+// ─── helpers ────────────────────────────────────────────────────────────────
 
 function buildQueryString(page: number, sort: string, filters: FilterState): string {
   const p = new URLSearchParams()
@@ -36,27 +38,101 @@ function buildQueryString(page: number, sort: string, filters: FilterState): str
   return p.toString()
 }
 
+/** Parse FilterState from URL search params */
+function filtersFromParams(sp: URLSearchParams): FilterState {
+  return {
+    district: sp.get('district') ?? '',
+    street:   sp.get('street')   ?? '',
+    priceMin: sp.get('priceMin') ?? '',
+    priceMax: sp.get('priceMax') ?? '',
+    ppm2Min:  sp.get('ppm2Min')  ?? '',
+    ppm2Max:  sp.get('ppm2Max')  ?? '',
+    sizeMin:  sp.get('sizeMin')  ?? '',
+    sizeMax:  sp.get('sizeMax')  ?? '',
+    rooms:    sp.getAll('rooms'),
+    floors:   sp.getAll('floors'),
+    hasLift:  sp.get('hasLift') === '1',
+    sources:  sp.getAll('source').length > 0 ? sp.getAll('source') : ['sscom','city24','izsoles'],
+  }
+}
+
+/** Returns true if any meaningful filter is active (i.e. user has selected something). */
+function hasActiveFilters(f: FilterState): boolean {
+  return !!(
+    f.district || f.street ||
+    f.priceMin || f.priceMax ||
+    f.ppm2Min  || f.ppm2Max  ||
+    f.sizeMin  || f.sizeMax  ||
+    f.rooms.length || f.floors.length ||
+    f.hasLift
+    // Note: sources alone don't count as a filter — it's a selection, not a restriction
+  )
+}
+
+// ─── component ──────────────────────────────────────────────────────────────
+
 export function ListingsPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const cardsPanelRef = useRef<HTMLDivElement>(null)
 
+  // Debounce timer ref for text inputs
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   const [data,          setData]          = useState<PaginatedListings | null>(null)
   const [allMarkers,    setAllMarkers]    = useState<import('@/types/listing').MapMarker[]>([])
-  const [loading,       setLoading]       = useState(true)
+  const [loading,       setLoading]       = useState(false)
   const [view,          setView]          = useState<'all' | 'map' | 'list'>('all')
   const [isDark,        setIsDark]        = useState(false)
   const [alertOpen,     setAlertOpen]     = useState(false)
   const [selectedId,    setSelectedId]    = useState<string | null>(null)
   const [filteredIds,   setFilteredIds]   = useState<string[] | null>(null)
   const [hasDrawnArea,  setHasDrawnArea]  = useState(false)
-  const [sort,          setSort]          = useState('score-desc')
-  const [activeFilters, setActiveFilters] = useState<FilterState>(EMPTY_FILTERS)
 
-  const page = parseInt(searchParams.get('page') || '1')
+  // Derive sort + page + filters directly from URL so Back restores state
+  const sort    = searchParams.get('sort') ?? 'score-desc'
+  const page    = parseInt(searchParams.get('page') || '1')
+  const activeFilters = useMemo(() => filtersFromParams(searchParams), [searchParams])
 
-  // Fetch paginated listings (cards panel)
+  // ── URL sync helper ──────────────────────────────────────────────────────
+
+  /** Push a new URL reflecting the current filter state. */
+  const pushUrl = useCallback((filters: FilterState, newPage = 1, newSort?: string) => {
+    const qs = buildQueryString(newPage, newSort ?? sort, filters)
+    router.replace(`/?${qs}`)
+  }, [sort, router])
+
+  // ── filter change handler (called on every sidebar interaction) ──────────
+
+  const handleFilterChange = useCallback((f: FilterState) => {
+    // For text inputs we debounce 400 ms to avoid hammering the API mid-type
+    const isTextChange = ['priceMin','priceMax','ppm2Min','ppm2Max','sizeMin','sizeMax'].some(
+      k => f[k as keyof FilterState] !== activeFilters[k as keyof FilterState]
+    )
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    if (isTextChange) {
+      debounceRef.current = setTimeout(() => pushUrl(f, 1), 400)
+    } else {
+      pushUrl(f, 1)
+    }
+  }, [activeFilters, pushUrl])
+
+  const handleClearFilters = useCallback(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    setFilteredIds(null)
+    setHasDrawnArea(false)
+    router.replace(`/?page=1&sort=${sort}`)
+  }, [sort, router])
+
+  // ── data fetching ────────────────────────────────────────────────────────
+
+  // Fetch paginated listings only when filters are active
   useEffect(() => {
+    if (!hasActiveFilters(activeFilters)) {
+      setData(null)
+      setLoading(false)
+      return
+    }
     setLoading(true)
     const qs = buildQueryString(page, sort, activeFilters)
     fetch(`/api/listings?${qs}`)
@@ -65,8 +141,12 @@ export function ListingsPage() {
       .catch(() => setLoading(false))
   }, [page, sort, activeFilters])
 
-  // Fetch ALL markers for current filters (map shows everything, not just current page)
+  // Fetch ALL markers for current filters — skip when no filter active
   useEffect(() => {
+    if (!hasActiveFilters(activeFilters)) {
+      setAllMarkers([])
+      return
+    }
     const fp = new URLSearchParams()
     if (activeFilters.district) fp.set('district', activeFilters.district)
     if (activeFilters.street)   fp.set('street',   activeFilters.street)
@@ -89,12 +169,13 @@ export function ListingsPage() {
       .catch(() => setAllMarkers([]))
   }, [activeFilters])
 
+  // ── event handlers ───────────────────────────────────────────────────────
+
   const handleMarkerClick = useCallback((id: string) => {
     setSelectedId(id)
     const panel = cardsPanelRef.current
     const card  = document.getElementById(`card-${id}`)
     if (panel && card) {
-      // Scroll so the card appears near the vertical centre of the panel
       const panelRect = panel.getBoundingClientRect()
       const cardRect  = card.getBoundingClientRect()
       const relativeTop = cardRect.top - panelRect.top + panel.scrollTop
@@ -108,39 +189,30 @@ export function ListingsPage() {
     setHasDrawnArea(ids !== null)
   }, [])
 
-  const handleDrawArea = useCallback(() => { (window as any).__dealradar_startDraw?.() }, [])
+  const handleDrawArea  = useCallback(() => { (window as any).__dealradar_startDraw?.() }, [])
   const handleClearDraw = useCallback(() => {
     ;(window as any).__dealradar_clearDraw?.()
     setFilteredIds(null)
     setHasDrawnArea(false)
   }, [])
 
-  const handleApplyFilters = useCallback((f: FilterState) => {
-    setActiveFilters(f)
-    setFilteredIds(null)   // clear polygon filter when applying sidebar filters
-    setHasDrawnArea(false)
-    router.push(`/?page=1&sort=${sort}`)
-  }, [sort, router])
-
-  const handleClearFilters = useCallback(() => {
-    setActiveFilters(EMPTY_FILTERS)
-    setFilteredIds(null)
-    setHasDrawnArea(false)
-    router.push(`/?page=1&sort=${sort}`)
-  }, [sort, router])
-
   const handlePageChange = (newPage: number) => {
-    router.push(`/?page=${newPage}&sort=${sort}`)
+    router.replace(`/?${buildQueryString(newPage, sort, activeFilters)}`)
   }
+
+  // ── derived ──────────────────────────────────────────────────────────────
 
   const visibleListings = data?.listings.filter(l =>
     filteredIds === null || filteredIds.includes(l.listing_id)
   ) ?? []
 
-  const resultCount = filteredIds !== null ? filteredIds.length : (data?.total ?? 0)
-  const isMapHidden      = view === 'list'
-  const isCardsHidden    = view === 'map'
-  const isCardsExpanded  = view === 'list'
+  const resultCount  = filteredIds !== null ? filteredIds.length : (data?.total ?? 0)
+  const isMapHidden     = view === 'list'
+  const isCardsHidden   = view === 'map'
+  const isCardsExpanded = view === 'list'
+  const filtersActive   = hasActiveFilters(activeFilters)
+
+  // ── render ───────────────────────────────────────────────────────────────
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', background: isDark ? '#0f172a' : '#f8fafc' }}>
@@ -154,7 +226,8 @@ export function ListingsPage() {
           onDrawArea={handleDrawArea}
           onClearDraw={handleClearDraw}
           hasDrawnArea={hasDrawnArea}
-          onApply={handleApplyFilters}
+          filters={activeFilters}
+          onChange={handleFilterChange}
           onClear={handleClearFilters}
         />
 
@@ -178,7 +251,9 @@ export function ListingsPage() {
               padding: '5px 10px', borderRadius: 8, zIndex: 1000,
               border: '1px solid rgba(255,255,255,0.1)',
             }}>
-              {filteredIds !== null ? `${filteredIds.length} in area` : `${allMarkers.length} listings`}
+              {!filtersActive
+                ? 'Select a filter to show listings'
+                : filteredIds !== null ? `${filteredIds.length} in area` : `${allMarkers.length} listings`}
             </div>
           </div>
         )}
@@ -208,10 +283,13 @@ export function ListingsPage() {
               borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : '#f1f5f9'}`,
             }}>
               <span style={{ fontSize: 12, fontWeight: 600, color: isDark ? '#475569' : '#475569' }}>
-                {loading ? '…' : `${resultCount} ${filteredIds !== null ? 'in area' : 'listings'} · p.${page}/${data?.totalPages ?? 1}`}
+                {!filtersActive
+                  ? 'No filter active'
+                  : loading ? '…' : `${resultCount} ${filteredIds !== null ? 'in area' : 'listings'} · p.${page}/${data?.totalPages ?? 1}`
+                }
               </span>
               <select value={sort}
-                onChange={e => { setSort(e.target.value); router.push(`/?page=1&sort=${e.target.value}`) }}
+                onChange={e => { router.replace(`/?${buildQueryString(page, e.target.value, activeFilters)}`) }}
                 style={{
                   fontSize: 11, border: `1.5px solid ${isDark ? 'rgba(255,255,255,0.1)' : '#e2e8f0'}`,
                   borderRadius: 8, padding: '4px 8px',
@@ -230,26 +308,42 @@ export function ListingsPage() {
               </select>
             </div>
 
+            {/* Blank slate */}
+            {!filtersActive && !loading && (
+              <div style={{
+                flex: 1, display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center',
+                color: isDark ? '#334155' : '#cbd5e1',
+                textAlign: 'center', padding: '32px 16px',
+              }}>
+                <div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div>
+                <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>Select a filter to get started</div>
+                <div style={{ fontSize: 12 }}>Choose a region, price range, or room count to see listings.</div>
+              </div>
+            )}
+
             {/* Grid */}
-            <div style={{
-              display: 'grid', gap: 10,
-              gridTemplateColumns: isCardsExpanded ? 'repeat(auto-fill, minmax(260px, 1fr))' : '1fr',
-            }}>
-              {loading
-                ? Array.from({ length: 6 }).map((_, i) => (
-                    <div key={i} style={{ height: 280, borderRadius: 12, background: isDark ? '#1e293b' : '#f1f5f9', animation: 'pulse 1.5s infinite' }} />
-                  ))
-                : visibleListings.map(l => (
-                    <ListingCard key={l.listing_id} listing={l} page={page} isDark={isDark}
-                      isSelected={selectedId === l.listing_id}
-                      onClick={() => handleMarkerClick(l.listing_id)}
-                    />
-                  ))
-              }
-            </div>
+            {filtersActive && (
+              <div style={{
+                display: 'grid', gap: 10,
+                gridTemplateColumns: isCardsExpanded ? 'repeat(auto-fill, minmax(260px, 1fr))' : '1fr',
+              }}>
+                {loading
+                  ? Array.from({ length: 6 }).map((_, i) => (
+                      <div key={i} style={{ height: 280, borderRadius: 12, background: isDark ? '#1e293b' : '#f1f5f9', animation: 'pulse 1.5s infinite' }} />
+                    ))
+                  : visibleListings.map(l => (
+                      <ListingCard key={l.listing_id} listing={l} page={page} isDark={isDark}
+                        isSelected={selectedId === l.listing_id}
+                        onClick={() => handleMarkerClick(l.listing_id)}
+                      />
+                    ))
+                }
+              </div>
+            )}
 
             {/* Pagination */}
-            {data && !loading && (
+            {filtersActive && data && !loading && (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px 4px 4px' }}>
                 <button onClick={() => handlePageChange(page - 1)} disabled={page <= 1}
                   style={{ padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: page <= 1 ? 'default' : 'pointer', border: `1.5px solid ${page <= 1 ? '#f1f5f9' : '#e2e8f0'}`, color: page <= 1 ? '#cbd5e1' : '#6366f1', background: page <= 1 ? '#f8fafc' : 'white' }}
