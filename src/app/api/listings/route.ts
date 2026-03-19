@@ -146,14 +146,22 @@ export async function GET(req: NextRequest) {
     const markers: MapMarker[] = listings
       .filter(l => l.latitude && l.longitude)
       .map(l => ({
-        id:     l.listing_id,
-        lat:    l.latitude!,
-        lng:    l.longitude!,
-        score:  l.deal_score || 0,
-        price:  l.price_eur ? formatPrice(l.price_eur) : (l as any).start_price_eur ? formatPrice((l as any).start_price_eur) : '?',
-        addr:   [l.street, l.house_number].filter(Boolean).join(' ') || l.district || 'Latvia',
-        photo:  l.photo_url || null,
-        source: (l as any).source,
+        id:              l.listing_id,
+        lat:             l.latitude!,
+        lng:             l.longitude!,
+        score:           l.deal_score || 0,
+        price:           l.price_eur ?? (l as any).start_price_eur ?? 0,
+        price_formatted: l.price_eur ? formatPrice(l.price_eur) : (l as any).start_price_eur ? formatPrice((l as any).start_price_eur) : '?',
+        addr:            [l.street, l.house_number].filter(Boolean).join(' ') || l.district || 'Latvia',
+        photo:           l.photo_url || null,
+        source:          (l as any).source,
+        area_m2:         l.area_m2,
+        rooms:           l.rooms,
+        floor:           l.floor,
+        total_floors:    l.total_floors,
+        has_lift:        l.has_lift ?? false,
+        district:        l.district ?? '',
+        street:          l.street ?? '',
       }))
 
     const result: PaginatedListings = {

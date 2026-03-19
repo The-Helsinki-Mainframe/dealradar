@@ -44,29 +44,6 @@ export function Nav({ view, onViewChange, isDark, onDarkToggle, onAlertOpen, onL
         </span>
       </button>
 
-      {/* Source tabs */}
-      <div id="nav-sources" className="flex items-center gap-1 ml-2">
-        {['ss.com', 'City24', '🔨 Auctions'].map((src, i) => (
-          <button
-            key={src}
-            className="text-[11px] font-medium px-2.5 py-1 rounded-lg transition-all"
-            style={
-              i === 0
-                ? { background: '#eef2ff', color: '#6366f1', border: '1.5px solid #e0e7ff' }
-                : {
-                    color: isDark ? '#475569' : '#94a3b8',
-                    border: '1.5px solid transparent',
-                    opacity: 0.5,
-                    cursor: 'default',
-                  }
-            }
-            title={i > 0 ? 'Coming in Phase 1' : undefined}
-          >
-            {src}
-          </button>
-        ))}
-      </div>
-
       <div className="flex-1" />
 
       {/* View toggles */}

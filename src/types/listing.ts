@@ -51,10 +51,18 @@ export interface MapMarker {
   lat: number
   lng: number
   score: number
-  price: string
+  price: number          // raw number for filtering
+  price_formatted?: string
   addr: string
   photo: string | null
   source?: string
+  area_m2?: number | null
+  rooms?: number | null
+  floor?: number | null
+  total_floors?: number | null
+  has_lift?: boolean
+  district?: string
+  street?: string
 }
 
 export interface PaginatedListings {

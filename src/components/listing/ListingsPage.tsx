@@ -7,7 +7,7 @@ import { Nav } from '@/components/layout/Nav'
 import { FilterSidebar, FilterState, EMPTY_FILTERS } from '@/components/layout/FilterSidebar'
 import { ListingCard } from '@/components/listing/ListingCard'
 import { AlertModal } from '@/components/layout/AlertModal'
-import type { PaginatedListings } from '@/types/listing'
+import type { PaginatedListings, MapMarker } from '@/types/listing'
 
 const ListingsMap = dynamic(() => import('@/components/map/ListingsMap').then(m => m.ListingsMap), {
   ssr: false,
@@ -16,10 +16,12 @@ const ListingsMap = dynamic(() => import('@/components/map/ListingsMap').then(m 
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
-function buildQueryString(page: number, sort: string, filters: FilterState): string {
+function buildQueryString(page: number, sort: string, filters: FilterState, dark: boolean, view: string): string {
   const p = new URLSearchParams()
   p.set('page', String(page))
   p.set('sort', sort)
+  if (dark) p.set('dark', '1')
+  if (view !== 'all') p.set('view', view)
   if (filters.district) p.set('district', filters.district)
   if (filters.street)   p.set('street',   filters.street)
   if (filters.priceMin) p.set('priceMin', filters.priceMin)
@@ -38,7 +40,6 @@ function buildQueryString(page: number, sort: string, filters: FilterState): str
   return p.toString()
 }
 
-/** Parse FilterState from URL search params */
 function filtersFromParams(sp: URLSearchParams): FilterState {
   return {
     district: sp.get('district') ?? '',
@@ -56,7 +57,6 @@ function filtersFromParams(sp: URLSearchParams): FilterState {
   }
 }
 
-/** Returns true if any meaningful filter is active (i.e. user has selected something). */
 function hasActiveFilters(f: FilterState): boolean {
   return !!(
     f.district || f.street ||
@@ -65,8 +65,53 @@ function hasActiveFilters(f: FilterState): boolean {
     f.sizeMin  || f.sizeMax  ||
     f.rooms.length || f.floors.length ||
     f.hasLift
-    // Note: sources alone don't count as a filter — it's a selection, not a restriction
   )
+}
+
+// ─── client-side marker filtering ───────────────────────────────────────────
+
+function applyFiltersToMarkers(markers: MapMarker[], filters: FilterState): MapMarker[] {
+  const sources = filters.sources ?? ['sscom','city24','izsoles']
+  const priceMin = filters.priceMin ? parseFloat(filters.priceMin) : null
+  const priceMax = filters.priceMax ? parseFloat(filters.priceMax) : null
+  const ppm2Min  = filters.ppm2Min  ? parseFloat(filters.ppm2Min)  : null
+  const ppm2Max  = filters.ppm2Max  ? parseFloat(filters.ppm2Max)  : null
+  const sizeMin  = filters.sizeMin  ? parseFloat(filters.sizeMin)  : null
+  const sizeMax  = filters.sizeMax  ? parseFloat(filters.sizeMax)  : null
+
+  return markers.filter(m => {
+    if (!sources.includes(m.source ?? 'sscom')) return false
+    if (filters.district && m.district?.toLowerCase() !== filters.district.toLowerCase()) return false
+    if (filters.street && !m.street?.toLowerCase().includes(filters.street.toLowerCase())) return false
+    if (priceMin !== null && m.price < priceMin) return false
+    if (priceMax !== null && m.price > priceMax) return false
+    const ppm2 = (m.area_m2 && m.price) ? m.price / m.area_m2 : null
+    if (ppm2Min !== null && (ppm2 === null || ppm2 < ppm2Min)) return false
+    if (ppm2Max !== null && (ppm2 === null || ppm2 > ppm2Max)) return false
+    if (sizeMin !== null && (m.area_m2 == null || m.area_m2 < sizeMin)) return false
+    if (sizeMax !== null && (m.area_m2 == null || m.area_m2 > sizeMax)) return false
+    if (filters.rooms.length > 0) {
+      const r = m.rooms
+      const match = filters.rooms.some(fr => {
+        if (fr === 'Studio') return r === 0 || r == null
+        if (fr === '5+') return r != null && r >= 5
+        return r === parseInt(fr)
+      })
+      if (!match) return false
+    }
+    if (filters.floors.length > 0) {
+      const fl = m.floor
+      const tot = m.total_floors
+      const match = filters.floors.some(ff => {
+        if (ff === '6+') return fl != null && fl >= 6
+        if (ff === 'Top') return fl != null && tot != null && fl === tot
+        return fl === parseInt(ff)
+      })
+      if (!match) return false
+    }
+    if (filters.hasLift && !m.has_lift) return false
+    return true
+  })
 }
 
 // ─── component ──────────────────────────────────────────────────────────────
@@ -76,100 +121,109 @@ export function ListingsPage() {
   const router = useRouter()
   const cardsPanelRef = useRef<HTMLDivElement>(null)
 
-  // Debounce timer ref for text inputs
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // All markers — loaded once on mount
+  const [allMarkers,   setAllMarkers]   = useState<MapMarker[]>([])
+  const [markersReady, setMarkersReady] = useState(false)
 
-  const [data,          setData]          = useState<PaginatedListings | null>(null)
-  const [allMarkers,    setAllMarkers]    = useState<import('@/types/listing').MapMarker[]>([])
-  const [loading,       setLoading]       = useState(false)
-  const [view,          setView]          = useState<'all' | 'map' | 'list'>('all')
-  const [isDark,        setIsDark]        = useState(false)
-  const [alertOpen,     setAlertOpen]     = useState(false)
-  const [selectedId,    setSelectedId]    = useState<string | null>(null)
-  const [filteredIds,   setFilteredIds]   = useState<string[] | null>(null)
-  const [hasDrawnArea,  setHasDrawnArea]  = useState(false)
+  // Paginated listings — fetched per filter change
+  const [data,    setData]    = useState<PaginatedListings | null>(null)
+  const [loading, setLoading] = useState(false)
 
-  // Derive sort + page + filters directly from URL so Back restores state
-  const sort    = searchParams.get('sort') ?? 'score-desc'
-  const page    = parseInt(searchParams.get('page') || '1')
+  // UI state — dark + view live in URL so Back restores them
+  const [alertOpen,    setAlertOpen]    = useState(false)
+  const [selectedId,   setSelectedId]   = useState<string | null>(null)
+  const [polygonIds,   setPolygonIds]   = useState<string[] | null>(null)
+  const [hasDrawnArea, setHasDrawnArea] = useState(false)
+
+  // Derive everything from URL — Back restores all of it
+  const sort          = searchParams.get('sort')  ?? 'score-desc'
+  const page          = parseInt(searchParams.get('page') || '1')
+  const isDark        = searchParams.get('dark') === '1'
+  const view          = (searchParams.get('view') as 'all'|'map'|'list') ?? 'all'
   const activeFilters = useMemo(() => filtersFromParams(searchParams), [searchParams])
 
-  // ── URL sync helper ──────────────────────────────────────────────────────
+  // ── Load ALL markers once on mount ─────────────────────────────────────
 
-  /** Push a new URL reflecting the current filter state. */
-  const pushUrl = useCallback((filters: FilterState, newPage = 1, newSort?: string) => {
-    const qs = buildQueryString(newPage, newSort ?? sort, filters)
+  useEffect(() => {
+    fetch('/api/all-markers')
+      .then(r => r.json())
+      .then((markers: MapMarker[]) => {
+        setAllMarkers(markers)
+        setMarkersReady(true)
+      })
+      .catch(() => setMarkersReady(true))
+  }, [])
+
+  // ── Client-side filtered markers ─────────────────────────────────────────
+
+  // When no filters active, show ALL markers (no blank slate)
+  const filteredMarkers = useMemo(() => {
+    if (!markersReady) return []
+    if (!hasActiveFilters(activeFilters) && (activeFilters.sources?.length ?? 3) === 3) {
+      return allMarkers
+    }
+    return applyFiltersToMarkers(allMarkers, activeFilters)
+  }, [allMarkers, markersReady, activeFilters])
+
+  const displayedMarkers = useMemo(() => {
+    if (polygonIds !== null) return filteredMarkers.filter(m => polygonIds.includes(m.id))
+    return filteredMarkers
+  }, [filteredMarkers, polygonIds])
+
+  // ── URL sync ─────────────────────────────────────────────────────────────
+
+  const pushUrl = useCallback((
+    filters: FilterState,
+    newPage = 1,
+    newSort?: string,
+    newDark?: boolean,
+    newView?: string,
+  ) => {
+    const qs = buildQueryString(
+      newPage,
+      newSort ?? sort,
+      filters,
+      newDark ?? isDark,
+      newView ?? view,
+    )
     router.replace(`/?${qs}`)
-  }, [sort, router])
-
-  // ── filter change handler (called on every sidebar interaction) ──────────
+  }, [sort, isDark, view, router])
 
   const handleFilterChange = useCallback((f: FilterState) => {
-    // For text inputs we debounce 400 ms to avoid hammering the API mid-type
-    const isTextChange = ['priceMin','priceMax','ppm2Min','ppm2Max','sizeMin','sizeMax'].some(
-      k => f[k as keyof FilterState] !== activeFilters[k as keyof FilterState]
-    )
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    if (isTextChange) {
-      debounceRef.current = setTimeout(() => pushUrl(f, 1), 400)
-    } else {
-      pushUrl(f, 1)
-    }
-  }, [activeFilters, pushUrl])
+    pushUrl(f, 1)
+  }, [pushUrl])
 
   const handleClearFilters = useCallback(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    setFilteredIds(null)
+    setPolygonIds(null)
     setHasDrawnArea(false)
-    router.replace(`/?page=1&sort=${sort}`)
-  }, [sort, router])
+    router.replace(`/?page=1&sort=${sort}${isDark ? '&dark=1' : ''}${view !== 'all' ? `&view=${view}` : ''}`)
+  }, [sort, isDark, view, router])
 
-  // ── data fetching ────────────────────────────────────────────────────────
+  const handleDarkToggle = useCallback(() => {
+    pushUrl(activeFilters, page, sort, !isDark, view)
+  }, [activeFilters, page, sort, isDark, view, pushUrl])
 
-  // Fetch paginated listings only when filters are active
+  const handleViewChange = useCallback((newView: 'all'|'map'|'list') => {
+    pushUrl(activeFilters, page, sort, isDark, newView)
+  }, [activeFilters, page, sort, isDark, pushUrl])
+
+  // ── Paginated listings (server, cards only) ───────────────────────────────
+
   useEffect(() => {
-    if (!hasActiveFilters(activeFilters)) {
+    if (!hasActiveFilters(activeFilters) && (activeFilters.sources?.length ?? 3) === 3) {
       setData(null)
       setLoading(false)
       return
     }
     setLoading(true)
-    const qs = buildQueryString(page, sort, activeFilters)
+    const qs = buildQueryString(page, sort, activeFilters, isDark, view)
     fetch(`/api/listings?${qs}`)
       .then(r => r.json())
       .then(d => { setData(d); setLoading(false) })
       .catch(() => setLoading(false))
   }, [page, sort, activeFilters])
 
-  // Fetch ALL markers for current filters — skip when no filter active
-  useEffect(() => {
-    if (!hasActiveFilters(activeFilters)) {
-      setAllMarkers([])
-      return
-    }
-    const fp = new URLSearchParams()
-    if (activeFilters.district) fp.set('district', activeFilters.district)
-    if (activeFilters.street)   fp.set('street',   activeFilters.street)
-    if (activeFilters.priceMin) fp.set('priceMin', activeFilters.priceMin)
-    if (activeFilters.priceMax) fp.set('priceMax', activeFilters.priceMax)
-    if (activeFilters.ppm2Min)  fp.set('ppm2Min',  activeFilters.ppm2Min)
-    if (activeFilters.ppm2Max)  fp.set('ppm2Max',  activeFilters.ppm2Max)
-    if (activeFilters.sizeMin)  fp.set('sizeMin',  activeFilters.sizeMin)
-    if (activeFilters.sizeMax)  fp.set('sizeMax',  activeFilters.sizeMax)
-    activeFilters.rooms.forEach(r  => fp.append('rooms',  r))
-    activeFilters.floors.forEach(f => fp.append('floors', f))
-    if (activeFilters.hasLift)  fp.set('hasLift', '1')
-    const activeSources = activeFilters.sources ?? ['sscom','city24','izsoles']
-    if (activeSources.length < 3) {
-      activeSources.forEach(s => fp.append('source', s))
-    }
-    fetch(`/api/markers?${fp.toString()}`)
-      .then(r => r.json())
-      .then(setAllMarkers)
-      .catch(() => setAllMarkers([]))
-  }, [activeFilters])
-
-  // ── event handlers ───────────────────────────────────────────────────────
+  // ── Event handlers ───────────────────────────────────────────────────────
 
   const handleMarkerClick = useCallback((id: string) => {
     setSelectedId(id)
@@ -185,39 +239,47 @@ export function ListingsPage() {
   }, [])
 
   const handlePolygonFilter = useCallback((ids: string[] | null) => {
-    setFilteredIds(ids)
+    setPolygonIds(ids)
     setHasDrawnArea(ids !== null)
   }, [])
 
   const handleDrawArea  = useCallback(() => { (window as any).__dealradar_startDraw?.() }, [])
   const handleClearDraw = useCallback(() => {
     ;(window as any).__dealradar_clearDraw?.()
-    setFilteredIds(null)
+    setPolygonIds(null)
     setHasDrawnArea(false)
   }, [])
 
+  const currentFilterQs = buildQueryString(page, sort, activeFilters, isDark, view)
+
   const handlePageChange = (newPage: number) => {
-    router.replace(`/?${buildQueryString(newPage, sort, activeFilters)}`)
+    router.replace(`/?${buildQueryString(newPage, sort, activeFilters, isDark, view)}`)
   }
 
-  // ── derived ──────────────────────────────────────────────────────────────
+  // ── Derived ──────────────────────────────────────────────────────────────
+
+  const filtersActive = hasActiveFilters(activeFilters) || (activeFilters.sources?.length ?? 3) < 3
 
   const visibleListings = data?.listings.filter(l =>
-    filteredIds === null || filteredIds.includes(l.listing_id)
+    polygonIds === null || polygonIds.includes(l.listing_id)
   ) ?? []
 
-  const resultCount  = filteredIds !== null ? filteredIds.length : (data?.total ?? 0)
-  const isMapHidden     = view === 'list'
-  const isCardsHidden   = view === 'map'
+  const resultCount    = polygonIds !== null ? polygonIds.length : (filtersActive ? (data?.total ?? 0) : allMarkers.length)
+  const isMapHidden    = view === 'list'
+  const isCardsHidden  = view === 'map'
   const isCardsExpanded = view === 'list'
-  const filtersActive   = hasActiveFilters(activeFilters)
 
-  // ── render ───────────────────────────────────────────────────────────────
+  // ── Render ───────────────────────────────────────────────────────────────
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', background: isDark ? '#0f172a' : '#f8fafc' }}>
-      <Nav view={view} onViewChange={setView} isDark={isDark} onDarkToggle={() => setIsDark(d => !d)} onAlertOpen={() => setAlertOpen(true)}
-        onLogoClick={() => { handleClearFilters(); setView('all') }}
+      <Nav
+        view={view}
+        onViewChange={handleViewChange}
+        isDark={isDark}
+        onDarkToggle={handleDarkToggle}
+        onAlertOpen={() => setAlertOpen(true)}
+        onLogoClick={() => { handleClearFilters(); handleViewChange('all') }}
       />
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
@@ -231,18 +293,17 @@ export function ListingsPage() {
           onClear={handleClearFilters}
         />
 
-        {/* Map — uses all markers (not just current page), filtered to polygon if drawn */}
+        {/* Map */}
         {!isMapHidden && (
           <div style={{ flex: 1, position: 'relative', minWidth: 0 }}>
             <ListingsMap
-              markers={filteredIds !== null
-                ? allMarkers.filter(m => filteredIds.includes(m.id))
-                : allMarkers}
+              markers={displayedMarkers}
               isDark={isDark}
               selectedId={selectedId}
+              filterQs={currentFilterQs}
               onMarkerClick={handleMarkerClick}
               onPolygonFilter={handlePolygonFilter}
-              allMarkersForPolygon={allMarkers}
+              allMarkersForPolygon={filteredMarkers}
             />
             <div style={{
               position: 'absolute', top: 12, left: 12,
@@ -251,9 +312,12 @@ export function ListingsPage() {
               padding: '5px 10px', borderRadius: 8, zIndex: 1000,
               border: '1px solid rgba(255,255,255,0.1)',
             }}>
-              {!filtersActive
-                ? 'Select a filter to show listings'
-                : filteredIds !== null ? `${filteredIds.length} in area` : `${allMarkers.length} listings`}
+              {!markersReady
+                ? 'Loading…'
+                : polygonIds !== null
+                  ? `${polygonIds.length} in area`
+                  : `${displayedMarkers.length} listings`
+              }
             </div>
           </div>
         )}
@@ -282,14 +346,14 @@ export function ListingsPage() {
               marginBottom: 10, paddingBottom: 9,
               borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : '#f1f5f9'}`,
             }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: isDark ? '#475569' : '#475569' }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: '#475569' }}>
                 {!filtersActive
-                  ? 'No filter active'
-                  : loading ? '…' : `${resultCount} ${filteredIds !== null ? 'in area' : 'listings'} · p.${page}/${data?.totalPages ?? 1}`
+                  ? 'Select a filter to see listings'
+                  : loading ? '…' : `${resultCount} ${polygonIds !== null ? 'in area' : 'listings'} · p.${page}/${data?.totalPages ?? 1}`
                 }
               </span>
               <select value={sort}
-                onChange={e => { router.replace(`/?${buildQueryString(page, e.target.value, activeFilters)}`) }}
+                onChange={e => router.replace(`/?${buildQueryString(page, e.target.value, activeFilters, isDark, view)}`)}
                 style={{
                   fontSize: 11, border: `1.5px solid ${isDark ? 'rgba(255,255,255,0.1)' : '#e2e8f0'}`,
                   borderRadius: 8, padding: '4px 8px',
@@ -308,7 +372,7 @@ export function ListingsPage() {
               </select>
             </div>
 
-            {/* Blank slate */}
+            {/* No filter = prompt */}
             {!filtersActive && !loading && (
               <div style={{
                 flex: 1, display: 'flex', flexDirection: 'column',
@@ -317,8 +381,11 @@ export function ListingsPage() {
                 textAlign: 'center', padding: '32px 16px',
               }}>
                 <div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div>
-                <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>Select a filter to get started</div>
-                <div style={{ fontSize: 12 }}>Choose a region, price range, or room count to see listings.</div>
+                <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>Select a filter to see listings</div>
+                <div style={{ fontSize: 12 }}>Choose a region, price range, or room count to see cards here.</div>
+                <div style={{ fontSize: 11, marginTop: 8, color: isDark ? '#1e3a5f' : '#e2e8f0' }}>
+                  Map shows all {markersReady ? allMarkers.length : '…'} listings
+                </div>
               </div>
             )}
 
@@ -333,7 +400,12 @@ export function ListingsPage() {
                       <div key={i} style={{ height: 280, borderRadius: 12, background: isDark ? '#1e293b' : '#f1f5f9', animation: 'pulse 1.5s infinite' }} />
                     ))
                   : visibleListings.map(l => (
-                      <ListingCard key={l.listing_id} listing={l} page={page} isDark={isDark}
+                      <ListingCard
+                        key={l.listing_id}
+                        listing={l}
+                        page={page}
+                        filterQs={buildQueryString(page, sort, activeFilters, isDark, view)}
+                        isDark={isDark}
                         isSelected={selectedId === l.listing_id}
                         onClick={() => handleMarkerClick(l.listing_id)}
                       />

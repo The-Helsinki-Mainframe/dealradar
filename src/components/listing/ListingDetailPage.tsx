@@ -15,8 +15,9 @@ interface ListingDetailPageProps {
 
 export function ListingDetailPage({ id }: ListingDetailPageProps) {
   const searchParams = useSearchParams()
-  const backPage = searchParams.get('back_page') || '1'
-  const source   = searchParams.get('source') || 'sscom'
+  // back= carries the full filter query string so Back restores exact filter state
+  const backQs = searchParams.get('back') ? decodeURIComponent(searchParams.get('back')!) : 'page=1&sort=score-desc'
+  const source  = searchParams.get('source') || 'sscom'
   const [listing, setListing] = useState<ListingDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [currentPhoto, setCurrentPhoto] = useState(0)
@@ -76,7 +77,7 @@ export function ListingDetailPage({ id }: ListingDetailPageProps) {
       {/* Nav */}
       <nav style={{ background: 'white', borderBottom: '1px solid #e2e8f0', position: 'sticky', top: 0, zIndex: 100 }}>
         <div style={{ maxWidth: 1100, margin: '0 auto', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <Link href={`/?page=${backPage}`} style={{ fontSize: 12, color: '#6366f1', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600 }}>
+          <Link href={`/?${backQs}`} style={{ fontSize: 12, color: '#6366f1', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600 }}>
             ← Back to listings
           </Link>
           <div style={{ width: 1, height: 16, background: '#e2e8f0' }} />

@@ -86,14 +86,15 @@ export async function GET(req: NextRequest) {
     `, params)
 
     const markers: MapMarker[] = res.rows.map((r: any) => ({
-      id:     r.listing_id,
-      lat:    parseFloat(r.latitude),
-      lng:    parseFloat(r.longitude),
-      score:  r.deal_score != null ? parseFloat(r.deal_score) : 0,
-      price:  r.price_eur ? formatPrice(parseFloat(r.price_eur)) : '?',
-      addr:   [r.street, r.house_number].filter(Boolean).join(' ') || r.district || 'Latvia',
-      photo:  r.photo_url || null,
-      source: r.source,
+      id:              r.listing_id,
+      lat:             parseFloat(r.latitude),
+      lng:             parseFloat(r.longitude),
+      score:           r.deal_score != null ? parseFloat(r.deal_score) : 0,
+      price:           r.price_eur ? parseFloat(r.price_eur) : 0,
+      price_formatted: r.price_eur ? formatPrice(parseFloat(r.price_eur)) : '?',
+      addr:            [r.street, r.house_number].filter(Boolean).join(' ') || r.district || 'Latvia',
+      photo:           r.photo_url || null,
+      source:          r.source,
     }))
 
     return NextResponse.json(markers)
