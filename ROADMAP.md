@@ -51,6 +51,7 @@ DealRadar was producing incorrect data silently. Reports showed >100% normalisat
 | [2.1](https://github.com/The-Helsinki-Mainframe/dealradar/issues/9) | Normalisation tier definitions — fix unresolved address reporting | Open | ✅ |
 | [2.2](https://github.com/The-Helsinki-Mainframe/dealradar/issues/10) | URL integrity check — detect and handle URL reuse | Open | ✅ |
 | [2.3](https://github.com/The-Helsinki-Mainframe/dealradar/issues/11) | Manual overrides audit — verify all 109 entries | Open | ✅ |
+| [2.3b](https://github.com/The-Helsinki-Mainframe/dealradar/issues/24) | Manual override submission & integration workflow | Open | ✅ |
 | [2.4](https://github.com/The-Helsinki-Mainframe/dealradar/issues/12) | Historic data completeness — identify and recover | Open | ✅ |
 | [2.5](https://github.com/The-Helsinki-Mainframe/dealradar/issues/13) | **Turkish gate: Phase 2 sign-off** | Open | ✅ |
 
@@ -90,6 +91,7 @@ DealRadar was producing incorrect data silently. Reports showed >100% normalisat
 |---|-------|--------|:---:|
 | [5.1](https://github.com/The-Helsinki-Mainframe/dealradar/issues/22) | Pre-delivery checklist — Archie QA process | Open | No |
 | [5.2](https://github.com/The-Helsinki-Mainframe/dealradar/issues/23) | Regression test suite — core pipeline logic | Open | No |
+| [5.3](https://github.com/The-Helsinki-Mainframe/dealradar/issues/25) | Build reusable audit tooling — deterministic QA scripts | Open | No |
 
 ---
 
