@@ -79,3 +79,22 @@
 **Context:** City24 API returns all-Latvia listings. Pipeline originally filtered by bounding box (Riga area). This was brittle and excluded some Riga listings near the boundary.
 **Decision:** City24 scraper fetches all Latvia (`address[cc]=2`). Pipeline filters by `city_name = 'Rīga'` everywhere. Non-Riga data retained in DB permanently — pipeline ignores it. Never use geo bbox.
 **Consequences:** DB contains non-Riga City24 data. All pipeline queries must filter `city_name = 'Rīga'`.
+
+---
+
+## 2026-03-23 — Phase 0 Turkish Caveats (Sanity Assertion Justifications)
+
+**Status:** Decided
+**Decided by:** Turkish (review) + Archie (implementation)
+**Context:** Turkish flagged that `write_confirmed`, `write_review_queue`, `write_iz_confirmed`, `write_groups`, and `stamp_initial_duplicate` have rollbacks but no sanity assertions, potentially violating Golden Rule #4.
+**Decision:** Sanity assertions are not applicable to these functions. All are additive writes (INSERT/UPDATE of new rows). They cannot cause mass data loss. Pipeline-level sanity checks on the output tables (configured in STAGES[] in pipeline.py) cover count assertions at the orchestrator level. This is explicitly documented in each function's docstring.
+**Consequences:** Any future bulk-mutation function must have a sanity assertion. Additive-only functions are exempt if pipeline-level sanity covers the output table.
+
+---
+
+## 2026-03-23 — upsert_run Transaction Safety
+
+**Status:** Decided
+**Decided by:** Turkish (review) + Archie (implementation)
+**Context:** Turkish flagged `upsert_run` in pipeline.py had no rollback or sanity assertion.
+**Decision:** Wrapped in try/except with rollback. Pipeline continues if run metadata write fails — losing metadata does not justify aborting the actual scraper work. Logs at ERROR level. No Discord alert (called mid-stage, would create a feedback loop with alert_stage_failure).
