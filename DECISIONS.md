@@ -98,3 +98,13 @@
 **Decided by:** Turkish (review) + Archie (implementation)
 **Context:** Turkish flagged `upsert_run` in pipeline.py had no rollback or sanity assertion.
 **Decision:** Wrapped in try/except with rollback. Pipeline continues if run metadata write fails — losing metadata does not justify aborting the actual scraper work. Logs at ERROR level. No Discord alert (called mid-stage, would create a feedback loop with alert_stage_failure).
+
+---
+
+## 2026-03-23 — source_detail_scraped_at Added to SS.com Listings
+
+**Status:** Decided
+**Decided by:** Turkish (recommended), Davis (approved)
+**Context:** SS.com detail page fields (source_address_raw, source_series, source_amenities, source_floor_raw, source_cadastre_number) are scraped on a different schedule than index fields — only on new listings and price changes. The existing scraped_at column reflects index scraping only. Without a separate timestamp, you cannot determine from the data which listings have detail coverage.
+**Decision:** Add source_detail_scraped_at TIMESTAMPTZ to listings table. Scraper sets it whenever it fetches the detail page. NULL = index data only, never detail-scraped.
+**Consequences:** Enables audit queries like "what % of active listings have detail data?" and targeting of one-off backfill runs.
