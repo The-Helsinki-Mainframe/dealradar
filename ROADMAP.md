@@ -25,20 +25,20 @@ DealRadar was producing incorrect data silently. Reports showed >100% normalisat
 | [0.1](https://github.com/The-Helsinki-Mainframe/dealradar/issues/1) | Pipeline health monitoring — per-step status & Discord alerts | ✅ Done 2026-03-23 | No |
 | [0.2](https://github.com/The-Helsinki-Mainframe/dealradar/issues/2) | Transaction safety audit — every DB-writing function | ✅ Done 2026-03-23 | No |
 | [0.3](https://github.com/The-Helsinki-Mainframe/dealradar/issues/3) | Pipeline ordering fix — dedup after all scrapers complete | ✅ Done 2026-03-23 | No |
-| [0.4](https://github.com/The-Helsinki-Mainframe/dealradar/issues/4) | **Turkish gate: Phase 0 sign-off** | Open | ✅ |
+| [0.4](https://github.com/The-Helsinki-Mainframe/dealradar/issues/4) | **Turkish gate: Phase 0 sign-off** | ✅ Done 2026-03-23 | ✅ |
 
 ---
 
 ## Phase 1 — Data Provenance: Source vs Normalised Separation
 **Goal:** Source data is immutable.
-**Status:** ⚪ Not Started
+**Status:** ✅ Complete — 2026-03-23
 
 | # | Issue | Status | Davis Input? |
 |---|-------|--------|:---:|
-| [1.1](https://github.com/The-Helsinki-Mainframe/dealradar/issues/5) | Schema migration — add immutable source_* columns | Open | ✅ |
-| [1.2](https://github.com/The-Helsinki-Mainframe/dealradar/issues/6) | Coordinate separation — capture SS.com/City24 source map coords | Open | No |
-| [1.3](https://github.com/The-Helsinki-Mainframe/dealradar/issues/7) | Field completeness audit — all sources vs DB | Open | ✅ |
-| [1.4](https://github.com/The-Helsinki-Mainframe/dealradar/issues/8) | **Turkish gate: Phase 1 sign-off** | Open | ✅ |
+| [1.1](https://github.com/The-Helsinki-Mainframe/dealradar/issues/5) | Schema migration — add immutable source_* columns | ✅ Done 2026-03-23 | ✅ |
+| [1.2](https://github.com/The-Helsinki-Mainframe/dealradar/issues/6) | Coordinate separation — capture SS.com/City24 source map coords | ✅ Done 2026-03-23 | No |
+| [1.3](https://github.com/The-Helsinki-Mainframe/dealradar/issues/7) | Field completeness audit — all sources vs DB | ✅ Done 2026-03-23 | ✅ |
+| [1.4](https://github.com/The-Helsinki-Mainframe/dealradar/issues/8) | **Turkish gate: Phase 1 sign-off** | ✅ Done 2026-03-23 | ✅ |
 
 ---
 
