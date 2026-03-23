@@ -22,9 +22,9 @@ DealRadar was producing incorrect data silently. Reports showed >100% normalisat
 
 | # | Issue | Status | Davis Input? |
 |---|-------|--------|:---:|
-| [0.1](https://github.com/The-Helsinki-Mainframe/dealradar/issues/1) | Pipeline health monitoring — per-step status & Discord alerts | Open | No |
-| [0.2](https://github.com/The-Helsinki-Mainframe/dealradar/issues/2) | Transaction safety audit — every DB-writing function | Open | No |
-| [0.3](https://github.com/The-Helsinki-Mainframe/dealradar/issues/3) | Pipeline ordering fix — dedup after all scrapers complete | Open | No |
+| [0.1](https://github.com/The-Helsinki-Mainframe/dealradar/issues/1) | Pipeline health monitoring — per-step status & Discord alerts | ✅ Done 2026-03-23 | No |
+| [0.2](https://github.com/The-Helsinki-Mainframe/dealradar/issues/2) | Transaction safety audit — every DB-writing function | ✅ Done 2026-03-23 | No |
+| [0.3](https://github.com/The-Helsinki-Mainframe/dealradar/issues/3) | Pipeline ordering fix — dedup after all scrapers complete | ✅ Done 2026-03-23 | No |
 | [0.4](https://github.com/The-Helsinki-Mainframe/dealradar/issues/4) | **Turkish gate: Phase 0 sign-off** | Open | ✅ |
 
 ---
