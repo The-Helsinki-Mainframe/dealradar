@@ -44,16 +44,16 @@ DealRadar was producing incorrect data silently. Reports showed >100% normalisat
 
 ## Phase 2 — Data Integrity & Correctness
 **Goal:** Every record is trustworthy, or explicitly flagged.
-**Status:** ⚪ Not Started
+**Status:** 🔄 IN PROGRESS (Turkish gate pending)
 
 | # | Issue | Status | Davis Input? |
 |---|-------|--------|:---:|
-| [2.1](https://github.com/The-Helsinki-Mainframe/dealradar/issues/9) | Normalisation tier definitions — fix unresolved address reporting | Open | ✅ |
-| [2.2](https://github.com/The-Helsinki-Mainframe/dealradar/issues/10) | URL integrity check — detect and handle URL reuse | Open | ✅ |
-| [2.3](https://github.com/The-Helsinki-Mainframe/dealradar/issues/11) | Manual overrides audit — verify all 109 entries | Open | ✅ |
-| [2.3b](https://github.com/The-Helsinki-Mainframe/dealradar/issues/24) | Manual override submission & integration workflow | Open | ✅ |
-| [2.4](https://github.com/The-Helsinki-Mainframe/dealradar/issues/12) | Historic data completeness — identify and recover | Open | ✅ |
-| [2.5](https://github.com/The-Helsinki-Mainframe/dealradar/issues/13) | **Turkish gate: Phase 2 sign-off** | Open | ✅ |
+| [2.1](https://github.com/The-Helsinki-Mainframe/dealradar/issues/9) | Normalisation tier definitions — fix unresolved address reporting | ✅ Closed | ✅ |
+| [2.2](https://github.com/The-Helsinki-Mainframe/dealradar/issues/10) | URL integrity check — detect and handle URL reuse | ✅ Closed | ✅ |
+| [2.3](https://github.com/The-Helsinki-Mainframe/dealradar/issues/11) | Manual overrides audit — verify all 109 entries | ✅ Closed | ✅ |
+| [2.3b](https://github.com/The-Helsinki-Mainframe/dealradar/issues/24) | Manual override submission & integration workflow | ✅ Closed | ✅ |
+| [2.4](https://github.com/The-Helsinki-Mainframe/dealradar/issues/12) | Historic data completeness — identify and recover | ✅ Closed | ✅ |
+| [2.5](https://github.com/The-Helsinki-Mainframe/dealradar/issues/13) | **Turkish gate: Phase 2 sign-off** | 🔄 In Review | ✅ |
 
 ---
 
