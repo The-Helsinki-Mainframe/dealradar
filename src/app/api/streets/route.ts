@@ -7,11 +7,11 @@ export async function GET(req: NextRequest) {
   try {
     const res = district
       ? await client.query(
-          `SELECT DISTINCT street FROM listings WHERE district = $1 AND street IS NOT NULL ORDER BY street`,
+          `SELECT DISTINCT source_street AS street FROM listings WHERE district = $1 AND source_street IS NOT NULL ORDER BY source_street`,
           [district]
         )
       : await client.query(
-          `SELECT DISTINCT street FROM listings WHERE street IS NOT NULL ORDER BY street`
+          `SELECT DISTINCT source_street AS street FROM listings WHERE source_street IS NOT NULL ORDER BY source_street`
         )
     return NextResponse.json(res.rows.map((r: any) => r.street))
   } finally {

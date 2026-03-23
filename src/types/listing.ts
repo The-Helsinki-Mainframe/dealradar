@@ -6,13 +6,16 @@ export interface Listing {
   rooms: number | null
   district: string | null
   price_m2: number | null
+  /** Normalised street name (street_normalised) or source street, aliased as 'street' for display */
   street: string | null
   house_number: string | null
   floor: number | null
   total_floors: number | null
   has_lift: boolean | null
   building_type: string | null
+  /** Resolved lat for map display — geocoded_latitude with source_latitude fallback */
   latitude: number | null
+  /** Resolved lng for map display — geocoded_longitude with source_longitude fallback */
   longitude: number | null
   published_at: string | null
   url: string
