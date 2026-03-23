@@ -44,7 +44,7 @@ DealRadar was producing incorrect data silently. Reports showed >100% normalisat
 
 ## Phase 2 — Data Integrity & Correctness
 **Goal:** Every record is trustworthy, or explicitly flagged.
-**Status:** 🔄 IN PROGRESS (Turkish gate pending)
+**Status:** ✅ COMPLETE (2026-03-23)
 
 | # | Issue | Status | Davis Input? |
 |---|-------|--------|:---:|
@@ -53,7 +53,7 @@ DealRadar was producing incorrect data silently. Reports showed >100% normalisat
 | [2.3](https://github.com/The-Helsinki-Mainframe/dealradar/issues/11) | Manual overrides audit — verify all 109 entries | ✅ Closed | ✅ |
 | [2.3b](https://github.com/The-Helsinki-Mainframe/dealradar/issues/24) | Manual override submission & integration workflow | ✅ Closed | ✅ |
 | [2.4](https://github.com/The-Helsinki-Mainframe/dealradar/issues/12) | Historic data completeness — identify and recover | ✅ Closed | ✅ |
-| [2.5](https://github.com/The-Helsinki-Mainframe/dealradar/issues/13) | **Turkish gate: Phase 2 sign-off** | 🔄 In Review | ✅ |
+| [2.5](https://github.com/The-Helsinki-Mainframe/dealradar/issues/13) | **Turkish gate: Phase 2 sign-off** | ✅ Closed | ✅ |
 
 ---
 
