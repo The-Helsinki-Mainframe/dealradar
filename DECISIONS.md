@@ -21,6 +21,44 @@
 
 ---
 
+## 2026-03-23 — Phase 2 Sign-Offs (Davis)
+
+**Status:** Decided
+**Decided by:** Davis (with Turkish architecture review)
+
+### [2.1] Normalisation Tier Definitions
+**Decision:** Four tiers adopted:
+- 🟢 Gold — exact VZD match
+- 🟡 Silver — resolved with caveats (`vzd_stripped_suffix`, `vzd_stripped_apartment`, `vzd_ambiguous_korpuss`, AI-confirmed)
+- 🟠 Bronze — geocoded only, no VZD match
+- 🔴 Unresolved — `vzd_no_building`, `street_only`
+**Consequences:** Daily report and unresolved address tab must use these tier definitions. All address reporting queries updated to classify by tier.
+
+### [2.2] URL Integrity
+**Decision:** Option (b) — flag URL reuse and preserve both records. No silent merging.
+**Sequencing:** 2.2 runs AFTER 2.4 backfill, using the mismatch report as primary evidence.
+**Consequences:** URL reuse detection is empirical (from backfill mismatch data), not theoretical. Avoids building infrastructure blind.
+
+### [2.3] Manual Override Lifecycle
+**Decision:**
+- `--revalidate` skips rows with active overrides entirely (not "clear then re-apply")
+- Weekly override health audit query: orphaned / mismatched / suspect categories
+- Import workflow: URL-only input from Davis → script resolves URL→listing_id → validates → writes. listing_id never accepted from human-authored files.
+- `import_batch_id` + `created_at` columns to be added to `manual_address_overrides`
+- Unique constraint on `(listing_id)` where `is_active=TRUE`
+- **First action:** audit existing 109 overrides for suspect entries (URL mismatch) before any Phase 2 execution
+
+### [2.4] Historic Data Backfill
+**Decision:**
+- Active listings (`is_listed=TRUE`): fetch detail page, write NULL fields only. Never overwrite existing `source_*` data.
+- Inactive listings (`is_listed=FALSE`): fetch and compare only — no writes. Results stored in staging table/report. Targeted writes only after Davis reviews and signs off per batch.
+- Mismatch tiers: Definite reuse (skip+flag critical) / Probable reuse (skip+flag review) / Likely variation (write+log)
+- `source_detail_backfilled_at TIMESTAMPTZ` column added to distinguish backfill fetches from live scraper fetches
+- Rate limit: 1–2 req/sec with jitter. Active listings first.
+- Sequencing: 2.3 and 2.4 run in parallel → 2.2 uses 2.4 mismatch output
+
+---
+
 ## 2026-03-23 — Source/Normalised Column Separation
 
 **Status:** Architecture approved, implementation pending Davis column-naming decision
