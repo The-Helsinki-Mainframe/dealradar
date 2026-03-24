@@ -59,20 +59,22 @@ DealRadar was producing incorrect data silently. Reports showed >100% normalisat
 
 ## Phase 3 — Dedup & Cross-Source Matching Audit
 **Goal:** Verify dedup and matching actually work.
-**Status:** ⚪ Not Started
+**Status:** ✅ Complete — 2026-03-24
 
 | # | Issue | Status | Davis Input? |
 |---|-------|--------|:---:|
-| [3.1](https://github.com/The-Helsinki-Mainframe/dealradar/issues/14) | Within-source dedup audit — sample review with Davis | Open | ✅ |
-| [3.2](https://github.com/The-Helsinki-Mainframe/dealradar/issues/15) | Cross-source matching audit — sample review with Davis | Open | ✅ |
-| [3.3](https://github.com/The-Helsinki-Mainframe/dealradar/issues/16) | Izsoles matching audit | Open | No |
-| [3.4](https://github.com/The-Helsinki-Mainframe/dealradar/issues/17) | **Turkish gate: Phase 3 sign-off** | Open | ✅ |
+| [3.1](https://github.com/The-Helsinki-Mainframe/dealradar/issues/14) | Within-source dedup audit — sample review with Davis | ✅ Closed | ✅ |
+| [3.2](https://github.com/The-Helsinki-Mainframe/dealradar/issues/15) | Cross-source matching audit — sample review with Davis | ✅ Closed | ✅ |
+| [3.3](https://github.com/The-Helsinki-Mainframe/dealradar/issues/16) | Izsoles matching audit | ✅ Closed | No |
+| [3.4](https://github.com/The-Helsinki-Mainframe/dealradar/issues/17) | **Turkish gate: Phase 3 sign-off** | ✅ Closed | ✅ |
+| [3.x](https://github.com/The-Helsinki-Mainframe/dealradar/issues/28) | URL reuse _v1 migration + pipeline guard | ✅ Closed | No |
+| [0.x](https://github.com/The-Helsinki-Mainframe/dealradar/issues/31) | new_unique_count=0 in catch-up runs | ✅ Closed | No |
 
 ---
 
 ## Phase 4 — Daily Report & Reporting Standards
 **Goal:** Every number in the report corresponds to something Davis can verify.
-**Status:** ⚪ Not Started
+**Status:** 🔄 Active — 2026-03-24
 
 | # | Issue | Status | Davis Input? |
 |---|-------|--------|:---:|
