@@ -123,3 +123,29 @@ Phase 5 (Continuous QA)     █████████████████�
 ---
 
 *This document is updated by Archie as issues are closed. Never edit the acceptance criteria of an open issue without Turkish review.*
+
+---
+
+## Phase 5 — Address Normalisation Overhaul (2026-03-25)
+**Status:** ✅ COMPLETE
+
+| Issue | Title | Status |
+|-------|-------|--------|
+| #39 | Snapshot math reconciliation | ✅ CLOSED |
+| #28 | URL reuse _v1 migration | ✅ CLOSED (was done in Phase 3) |
+| #26 | City24 missing coordinates | ✅ CLOSED |
+| #32 | vzd_no_building false negatives | ✅ CLOSED |
+| — | ss_street_map.py 39 hallucinations fixed | ✅ SHIPPED (3f32b8f) |
+| — | source_address_raw as primary normaliser input | ✅ SHIPPED (3f32b8f) |
+| — | Sub-street handler (Čiekurkalna/Vecmīlgrāvja) | ✅ SHIPPED (3f32b8f) |
+
+**Final address quality (2026-03-25):** SS.com Gold 91.0% | Silver 5.4% | Unresolved 3.6%
+
+### Remaining Phase 5 Open
+- #38 report_qa.py cleanup
+- #35 Deprecate --pipeline-run-start CLI arg
+- #36 Regression test catch-up scenario
+- #37 Rentals expansion
+- #40 Price drop tracking
+- #41 Weekly full-recount
+- #42 Gold coordinate audit
