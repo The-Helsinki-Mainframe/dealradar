@@ -1,10 +1,10 @@
 import { Suspense } from 'react'
-import { LandingPage } from '@/components/landing/LandingPage'
+import { ListingsPage } from '@/components/listing/ListingsPage'
 
 export default function Home() {
   return (
     <Suspense>
-      <LandingPage />
+      <ListingsPage />
     </Suspense>
   )
 }
